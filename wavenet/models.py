@@ -1,20 +1,23 @@
-import matplotlib.pyplot as plt
 import numpy as np
+import os
 import tensorflow as tf
+from time import time
 from .layers import (_causal_linear, _output_linear, conv1d,
                     dilated_conv1d)
 
 
 class Model(object):
     def __init__(self,
+                 #wav,
                  num_time_samples,
                  num_channels=1,
-                 num_classes=256,
-                 num_blocks=2,
-                 num_layers=14,
-                 num_hidden=128,
+                 num_classes=256, # Quantification, doesn't impact complexity while up to 256
+                 num_blocks=2, # Number of stack
+                 num_layers=16, # To test from 10 to 16
+                 num_hidden=256, # To test from 64 to 512
                  gpu_fraction=1.0):
-        
+
+        #self.wav = wav
         self.num_time_samples = num_time_samples
         self.num_channels = num_channels
         self.num_classes = num_classes
@@ -22,10 +25,13 @@ class Model(object):
         self.num_layers = num_layers
         self.num_hidden = num_hidden
         self.gpu_fraction = gpu_fraction
-        
+
+        tf.reset_default_graph()
+
         inputs = tf.placeholder(tf.float32,
-                                shape=(None, num_time_samples, num_channels))
-        targets = tf.placeholder(tf.int32, shape=(None, num_time_samples))
+                                shape=(None, num_time_samples, num_channels), name = 'inputs')
+        targets = tf.placeholder(tf.int32, shape=(None, num_time_samples), name = 'targets')
+
 
         h = inputs
         hs = []
@@ -51,6 +57,8 @@ class Model(object):
 
         gpu_options = tf.GPUOptions(
             per_process_gpu_memory_fraction=gpu_fraction)
+
+        saver = tf.train.Saver(max_to_keep = 1)
         sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
         sess.run(tf.initialize_all_variables())
 
@@ -62,38 +70,77 @@ class Model(object):
         self.cost = cost
         self.train_step = train_step
         self.sess = sess
+        self.saver = saver
 
     def _train(self, inputs, targets):
         feed_dict = {self.inputs: inputs, self.targets: targets}
+        #with tf.Session as sess :
         cost, _ = self.sess.run(
             [self.cost, self.train_step],
             feed_dict=feed_dict)
         return cost
 
-    def train(self, inputs, targets):
-        losses = []
-        terminal = False
-        i = 0
-        while not terminal:
-            i += 1
-            cost = self._train(inputs, targets)
-            if cost < 1e-1:
-                terminal = True
-            losses.append(cost)
-            if i % 50 == 0:
-                plt.plot(losses)
-                plt.show()
+    def train(self, inputs, targets, stopcriterion = 0.1):
+            losses = []
+            terminal = False
+            i = 0
+            tic=time()
+            ckpt_path = 'B{}_L{}_D{}'.format(self.num_blocks, self.num_layers, self.num_hidden)
+            print('Training started')
+            while not terminal:
+                i += 1
+                cost = self._train(inputs, targets)
+                if cost < stopcriterion or time() - tic > 3*3600 :
+                    print('The final cost is ' + str(cost))
+                    if os.path.isdir('checkpoints/' + ckpt_path ) == False :
+                        os.mkdir('checkpoints/' + ckpt_path )
+                    saved_path = self.saver.save(self.sess, 'checkpoints/' + ckpt_path + '/' + ckpt_path)
+                    print('model saved in : {}'.format(saved_path))
+                    terminal = True
+                losses.append(cost)
+                if i % 10 == 0 :
+                    print('Train step : ' + str(i) + ' & training time is {} seconds.'.format(time()-tic))
+                    print('The current cost is ' + str(cost))
+                #if i % 100 == 0 :
+                #    if os.path.isdir('checkpoints/' + ckpt_path ) == False :
+                #        os.mkdir('checkpoints/' + ckpt_path )
+                #    saved_path = self.saver.save(self.sess, 'checkpoints/' + ckpt_path  + '/' + ckpt_path, global_step = i)
+                #    print('model saved in : {}'.format(saved_path))
+            return(i, losses)
+
+    def restore(self):
+
+        path = 'B{}_L{}_D{}'.format(self.num_blocks, self.num_layers, self.num_hidden)
+
+        try:
+
+            print('Importing meta-graph : ')
+            self.saver = tf.compat.v1.train.import_meta_graph('checkpoints/' + path + '/' + path + '.meta')
+
+            self.sess = tf.compat.v1.Session()
+
+            print('Restoring checkpoint : ')
+            self.saver.restore(self.sess, 'checkpoints/' + path + '/' + path)
+
+        except Exception as e:
+            print(str(e))
+
+        print(self.inputs)
+        print(self.targets)
+        print(self.saver)
+
 
 
 class Generator(object):
     def __init__(self, model, batch_size=1, input_size=1):
+
         self.model = model
         self.bins = np.linspace(-1, 1, self.model.num_classes)
 
         inputs = tf.placeholder(tf.float32, [batch_size, input_size],
                                 name='inputs')
 
-        print('Make Generator.')
+        print('Making Generator : ')
 
         count = 0
         h = inputs
@@ -108,7 +155,7 @@ class Generator(object):
                     state_size = 1
                 else:
                     state_size = self.model.num_hidden
-                    
+
                 q = tf.FIFOQueue(rate,
                                  dtypes=tf.float32,
                                  shapes=(batch_size, state_size))
@@ -130,7 +177,7 @@ class Generator(object):
         self.inputs = inputs
         self.init_ops = init_ops
         self.out_ops = out_ops
-        
+
         # Initialize queues.
         self.model.sess.run(self.init_ops)
 
@@ -144,14 +191,6 @@ class Generator(object):
 
             input = np.array(self.bins[value])[None, None]
             predictions.append(input)
-
-            if step % 1000 == 0:
-                predictions_ = np.concatenate(predictions, axis=1)
-                plt.plot(predictions_[0, :], label='pred')
-                plt.legend()
-                plt.xlabel('samples from start')
-                plt.ylabel('signal')
-                plt.show()
 
         predictions_ = np.concatenate(predictions, axis=1)
         return predictions_

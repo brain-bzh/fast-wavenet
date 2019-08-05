@@ -63,6 +63,7 @@ def conv1d(inputs,
            gain=np.sqrt(2),
            activation=tf.nn.relu,
            bias=False):
+    
     '''One dimension convolution helper function.
     
     Sets variables with good defaults.
@@ -84,12 +85,26 @@ def conv1d(inputs,
     in_channels = inputs.get_shape().as_list()[-1]
 
     stddev = gain / np.sqrt(filter_width**2 * in_channels)
+        
     w_init = tf.random_normal_initializer(stddev=stddev)
-
+    
     w = tf.get_variable(name='w',
-                        shape=(filter_width, in_channels, out_channels),
-                        initializer=w_init)
-
+                            shape=(filter_width, in_channels, out_channels),
+                            initializer=w_init)
+    
+    """
+    try :
+        w = tf.get_variable(name='w',
+                            shape=(filter_width, in_channels, out_channels),
+                            initializer=w_init)
+    except :
+        with tf.variable_scope(tf.get_variable_scope(), reuse=True):
+            w_reuse = tf.get_variable(name='w',
+                            shape=(filter_width, in_channels, out_channels),
+                            initializer=w_init)
+    """
+    
+    
     outputs = tf.nn.conv1d(inputs,
                            w,
                            stride=stride,
