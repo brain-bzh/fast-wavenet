@@ -161,7 +161,7 @@ def reject_outliers(s, d, m=1) :
     return s[i], d[i]
 
 
-def test() :
+def test() : #may be a few name typos, not entirely tested yet
     """ 
     example function
     """
