@@ -51,7 +51,7 @@ class Displayer :
         """
         adds a chunk of sound and data to the model
         """
-        s, d = reject_outliers(sound, data)
+        s, d = reject_outliers(s, d)
         self.sound = np.append(self.sound, getSoundUndersampling(s, self.sr))
         self.data = np.append(self.data, getUndersampling(d, self.sound, s), axis=0)
         return
