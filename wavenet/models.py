@@ -4,7 +4,7 @@ import tensorflow as tf
 from time import time
 from .layers import (_causal_linear, _output_linear, conv1d,
                     dilated_conv1d)
-
+from tqdm import tqdm
 
 class Model(object):
     def __init__(self,
@@ -13,7 +13,7 @@ class Model(object):
                  num_channels=1,
                  num_classes=256, # Quantification, doesn't impact complexity while up to 256
                  num_blocks=2, # Number of stack
-                 num_layers=16, # To test from 10 to 16
+                 num_layers=12, # To test from 10 to 16
                  num_hidden=256, # To test from 64 to 512
                  gpu_fraction=1.0):
 
@@ -173,7 +173,9 @@ class Generator(object):
 
         out_ops = [tf.nn.softmax(outputs)]
         out_ops.extend(push_ops)
+        out_ops.append(h)
 
+        self.test_val = h
         self.inputs = inputs
         self.init_ops = init_ops
         self.out_ops = out_ops
@@ -194,3 +196,18 @@ class Generator(object):
 
         predictions_ = np.concatenate(predictions, axis=1)
         return predictions_
+
+    def getData(self, input, num_samples) :
+        predictions = []
+        h_vals = []
+        for step in tqdm(range(num_samples)):
+            feed_dict = {self.inputs: input}
+            output = self.model.sess.run(self.out_ops, feed_dict=feed_dict)
+            h = output[-1]
+            output = output[0]
+            value = np.argmax(output[0, :])
+            input = np.array(self.bins[value])[None, None]
+            predictions.append(input)
+            h_vals.append(h[0])
+        predictions_ = np.concatenate(predictions, axis=1)
+        return predictions_[0], h_vals
