@@ -1,0 +1,2 @@
+model_checkpoint_path: "B2_L12_D256"
+all_model_checkpoint_paths: "B2_L12_D256"

@@ -40,9 +40,16 @@ model = Model(num_time_samples=num_time_samples,
 
 model.restore()
 
+print("start")
+
 generator = Generator(model)
 
+print("Done")
+
 new_pred = generator.run([[np.random.randn()]], num_time_samples*2)
+
+
+
 output.write_wav('1dur_generated.wav', new_pred[0], sample_rate)
 
 #new_pred = generator.run([[np.random.randn()]], num_time_samples*5)
@@ -50,3 +57,21 @@ output.write_wav('1dur_generated.wav', new_pred[0], sample_rate)
 
 #new_pred = generator.run([[np.random.randn()]], num_time_samples*120)
 #output.write_wav('120dur_generated.wav', new_pred[0], sample_rate)
+
+
+
+
+def createData() :
+    sound, latent = generator.getData([[np.random.randn()]], num_time_samples*2)
+    save(sound, latent)
+    
+
+def save(sound, h) :
+    x, y = sound, h
+    np.savez("data.npz", x=x, y=y, allow_pickle=True)
+
+
+def load() :
+    data = np.load("data.npz")
+    data.allow_pickle = True
+    return data["x"], data["y"]
