@@ -4,11 +4,11 @@ import tensorflow as tf
 
 def time_to_batch(inputs, rate):
     '''If necessary zero-pads inputs and reshape by rate.
-    
+
     Used to perform 1D dilated convolution.
-    
+
     Args:
-      inputs: (tensor) 
+      inputs: (tensor)
       rate: (int)
     Outputs:
       outputs: (tensor)
@@ -29,9 +29,9 @@ def time_to_batch(inputs, rate):
 
 def batch_to_time(inputs, rate, crop_left=0):
     ''' Reshape to 1d signal, and remove excess zero-padding.
-    
+
     Used to perform 1D dilated convolution.
-    
+
     Args:
       inputs: (tensor)
       crop_left: (int)
@@ -42,13 +42,13 @@ def batch_to_time(inputs, rate, crop_left=0):
     shape = tf.shape(inputs)
     batch_size = shape[0] / rate
     width = shape[1]
-    
+
     out_width = tf.to_int32(width * rate)
     _, _, num_channels = inputs.get_shape().as_list()
-    
+
     perm = (1, 0, 2)
     new_shape = (out_width, -1, num_channels) # missing dim: batch_size
-    transposed = tf.transpose(inputs, perm)    
+    transposed = tf.transpose(inputs, perm)
     reshaped = tf.reshape(transposed, new_shape)
     outputs = tf.transpose(reshaped, perm)
     cropped = tf.slice(outputs, [0, crop_left, 0], [-1, -1, -1])
@@ -63,11 +63,11 @@ def conv1d(inputs,
            gain=np.sqrt(2),
            activation=tf.nn.relu,
            bias=False):
-    
+
     '''One dimension convolution helper function.
-    
+
     Sets variables with good defaults.
-    
+
     Args:
       inputs:
       out_channels:
@@ -78,20 +78,20 @@ def conv1d(inputs,
       gain:
       activation:
       bias:
-      
+
     Outputs:
       outputs:
     '''
     in_channels = inputs.get_shape().as_list()[-1]
 
     stddev = gain / np.sqrt(filter_width**2 * in_channels)
-        
+
     w_init = tf.random_normal_initializer(stddev=stddev)
-    
-    w = tf.get_variable(name='w',
+
+    w = tf.compat.v1.get_variable(name='w',
                             shape=(filter_width, in_channels, out_channels),
                             initializer=w_init)
-    
+
     """
     try :
         w = tf.get_variable(name='w',
@@ -103,8 +103,8 @@ def conv1d(inputs,
                             shape=(filter_width, in_channels, out_channels),
                             initializer=w_init)
     """
-    
-    
+
+
     outputs = tf.nn.conv1d(inputs,
                            w,
                            stride=stride,
@@ -113,7 +113,7 @@ def conv1d(inputs,
 
     if bias:
         b_init = tf.constant_initializer(0.0)
-        b = tf.get_variable(name='b',
+        b = tf.compat.v1.get_variable(name='b',
                             shape=(out_channels, ),
                             initializer=b_init)
 
@@ -133,7 +133,7 @@ def dilated_conv1d(inputs,
                    gain=np.sqrt(2),
                    activation=tf.nn.relu):
     '''
-    
+
     Args:
       inputs: (tensor)
       output_channels:
@@ -148,7 +148,7 @@ def dilated_conv1d(inputs,
       outputs: (tensor)
     '''
     assert name
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         _, width, _ = inputs.get_shape().as_list()
         inputs_ = time_to_batch(inputs, rate=rate)
         outputs_ = conv1d(inputs_,
@@ -163,9 +163,9 @@ def dilated_conv1d(inputs,
         outputs = batch_to_time(outputs_, rate=rate, crop_left=diff)
 
         # Add additional shape information.
-        tensor_shape = [tf.Dimension(None),
-                        tf.Dimension(width),
-                        tf.Dimension(out_channels)]
+        tensor_shape = [tf.compat.v1.Dimension(None),
+                        tf.compat.v1.Dimension(width),
+                        tf.compat.v1.Dimension(out_channels)]
         outputs.set_shape(tf.TensorShape(tensor_shape))
 
     return outputs
@@ -174,21 +174,21 @@ def _causal_linear(inputs, state, name=None, activation=None):
     assert name
     '''
     '''
-    with tf.variable_scope(name, reuse=True) as scope:
-        w = tf.get_variable('w')
+    with tf.compat.v1.variable_scope(name, reuse=True) as scope:
+        w = tf.compat.v1.get_variable('w')
         w_r = w[0, :, :]
         w_e = w[1, :, :]
-
         output = tf.matmul(inputs, w_e) + tf.matmul(state, w_r)
 
         if activation:
             output = activation(output)
+
     return output
 
 def _output_linear(h, name=''):
-    with tf.variable_scope(name, reuse=True):
-        w = tf.get_variable('w')[0, :, :]
-        b = tf.get_variable('b')
+    with tf.compat.v1.variable_scope(name, reuse=True):
+        w = tf.compat.v1.get_variable('w')[0, :, :]
+        b = tf.compat.v1.get_variable('b')
 
         output = tf.matmul(h, w) + tf.expand_dims(b, 0)
     return output
