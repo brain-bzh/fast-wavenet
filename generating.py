@@ -45,15 +45,15 @@ seed = np.random.uniform(low=-1.0, high=1.0)
 
 random_input = [[seed]]
 random_inputs = []
-for i in range(num_hidden-1):
-    random_inputs.append(0)
-random_inputs.append(seed)
-random_inputs = np.asarray(random_inputs).reshape(num_hidden,1).tolist()
+#for i in range(num_hidden-1):
+#    random_inputs.append(0)
+#random_inputs.append(seed)
+#random_inputs = np.asarray(random_inputs).reshape(num_hidden,1).tolist()
 
-print('Making first prediction...')
+#print('Making first prediction...')
 tic = time()
-combined_pred = generator.run(random_input, sample_rate).tolist()
-
+combined_pred = generator.run(random_input, sample_rate* duration).tolist()
+'''
 for t in range(duration - 1) :
     print('Making next prediction : {}/{}... at time : {} seconds'.format(t+2, duration, time() - tic))
     if t % 5 == 0 :
@@ -63,7 +63,7 @@ for t in range(duration - 1) :
     #curent_inputs = np.asarray(combined_pred[len(combined_pred)-num_hidden:]).reshape(num_hidden,1).tolist()
     curent_pred = generator.run(curent_input, sample_rate).tolist()
     combined_pred.extend(curent_pred)
-
+'''
 output.write_wav('{}s_generated.wav'.format(duration), np.asarray(combined_pred), sample_rate)
 print('Total time of generation is {}'.format(time()-tic))
 print('Wav file created at : ' + '{}s_generated.wav'.format(duration))
