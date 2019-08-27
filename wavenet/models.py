@@ -190,11 +190,13 @@ class Generator(object):
     def run(self, input, num_samples):
         predictions = []
         for step in tqdm(range(num_samples)):
+
             feed_dict = {self.inputs: input}
             output = self.model.sess.run(self.out_ops, feed_dict=feed_dict)[0] # Ignore push_ops
             value = np.argmax(output[0, :])
-            input = input[1:]
-            input.append(self.bins[value][None, None][0])
-            predictions.append([input[-1][0]])
-        predictions_ = np.concatenate(predictions, axis = self.model.num_hidden)
+
+            input = np.array(self.bins[value])[None, None]
+            predictions.append(input)
+
+        predictions_ = np.concatenate(predictions, axis = 1)
         return predictions_
